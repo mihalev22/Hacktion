@@ -17,7 +17,7 @@ export type Req = {
 };
 
 export type Segment = { id: string; start_sec: number; end_sec: number; speaker: string | null; text: string };
-export type Question = { id: string; description: string; source_text?: string | null; resolved: boolean };
+export type Question = { id: string; description: string; source_text?: string | null; resolved: boolean; requirement_id?: string | null; requirement_public_id?: string | null };
 export type Contra = {
   id: string;
   requirement_public_ids: string;
@@ -36,6 +36,10 @@ export type MeetingData = {
     duration_sec?: number | null;
     created_at?: string;
     error?: string | null;
+    is_video?: boolean;
+    project_id?: string | null;
+    project_name?: string | null;
+    project_role?: string | null;
   };
   requirements: Req[];
   constraints: Req[];

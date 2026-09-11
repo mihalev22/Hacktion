@@ -1,17 +1,54 @@
+# ---------- Python ----------
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.egg-info/
 .venv/
-requirex.db
-uploads/
-.env
+venv/
+env/
+backend/.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage/
+htmlcov/
+build/
+
+# ---------- Node / frontend ----------
 node_modules/
 dist/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# ---------- секреты / окружение (значения никогда не коммитим) ----------
+.env
+backend/.env
+frontend/.env
+
+# ---------- локальные данные и рантайм ----------
+requirex.db
+*.db
+uploads/
+
+# ---------- логи ----------
 *.log
 *.err
-../new/
+
+# ---------- ОС / редакторы ----------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ---------- локальные медиа-примеры ----------
 *.m4a
 *.mp3
 *.mp4
 *.wav
 
+# ---------- прочее локальное ----------
+../new/
 scripts/figma_token.txt

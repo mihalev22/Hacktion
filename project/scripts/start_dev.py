@@ -22,7 +22,7 @@ procs.append(
 fe_log = open(os.path.join(logs, "frontend.log"), "w")
 procs.append(
     subprocess.Popen(
-        ["node", "node_modules/vite/bin/vite.js", "--port", "5173"],
+        ["node", "node_modules/vite/bin/vite.js", "--port", "5173", "--strictPort"],
         cwd=os.path.join(root, "frontend"),
         creationflags=0x10,
         stdout=fe_log,

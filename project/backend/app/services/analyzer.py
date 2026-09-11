@@ -12,7 +12,8 @@ PROMPT_PATH = Path(__file__).resolve().parents[3] / "docs" / "gigachat_prompt.md
 CONTRADICTION_PROMPT = """Ты — системный аналитик. Тебе даны транскрипция встречи и список
 извлечённых требований. Найди противоречия: (1) требования конфликтуют между собой;
 (2) говорящий менял решение по ходу разговора (ретракт: сначала согласился, потом отказался).
-Верни СТРОГО JSON: {"contradictions": [{"requirement_texts": ["...", "..."], "description": "...", "recommendation": "..."}]}.
+Верни СТРОГО JSON: {"contradictions": [{"requirement_ids": ["REQ-001", "REQ-002"], "description": "...", "recommendation": "..."}]}.
+Требования указаны списком с id — в requirement_ids возвращай ИМЕННО эти id (2 и более).
 Если противоречий нет — верни {"contradictions": []}. Не выдумывай противоречия."""
 
 

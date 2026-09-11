@@ -6,13 +6,21 @@ import uuid
 import requests
 import urllib3
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 from ..config import settings
 
 TOKEN_URL = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
 SCOPE = "GIGACHAT_API_PERS"
 API_URL = "https://api.giga.chat/v1"
+
+
+def _verify() -> bool | str:
+    """GIGACHAT_CA_BUNDLE=path → проверяем цепочку Сбера по их корневому сертификату (безопасно).
+    Иначе GIGACHAT_VERIFY_SSL; false — осознанный компромисс хакатона (см. README)."""
+    if settings.gigachat_ca_bundle:
+        return settings.gigachat_ca_bundle
+    if not settings.gigachat_verify:
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    return settings.gigachat_verify
 
 _token_cache = {"token": "", "exp": 0.0}
 
@@ -32,7 +40,7 @@ def _token() -> str:
         data={"scope": SCOPE},
         auth=(settings.gigachat_client_id, settings.gigachat_client_secret),
         timeout=60,
-        verify=False,  # у Sberbank промежуточный сертификат — self-signed цепочка, на боевом хостинге убрать нельзя (см. README: deploy TODO)
+        verify=_verify(),
     )
     if resp.status_code != 200:
         raise RuntimeError(f"OAuth failed {resp.status_code}: {resp.text[:300]}")
@@ -52,7 +60,7 @@ def chat(messages: list[dict], model: str = "GigaChat-3-Ultra", temperature: flo
             "temperature": temperature,
         },
         timeout=300,
-        verify=False,  # self-signed цепочка сертификатов Sber — как в OAuth
+        verify=_verify(),
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"]

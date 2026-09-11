@@ -1,0 +1,70 @@
+# ---------- version control & IDE ----------
+.git
+.gitignore
+.gitattributes
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# ---------- local virtualenvs (Windows-бинарники НЕ должны ехать на Linux) ----------
+.venv
+venv
+env
+backend/.venv
+backend/venv
+backend/env
+
+# ---------- Python caches / build artifacts ----------
+__pycache__
+**/__pycache__
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+coverage
+htmlcov
+build
+
+# ---------- Node — зависимости ставятся внутри контейнера ----------
+node_modules
+**/node_modules
+frontend/node_modules
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.vite
+frontend/.vite
+
+# ---------- frontend не входит в контекст backend-образа (собирается отдельным контекстом ./frontend) ----------
+frontend/
+dist
+frontend/dist
+
+# ---------- секреты / env — на сервере .env создаётся отдельно ----------
+.env
+.env.*
+backend/.env
+frontend/.env
+
+# ---------- локальные БД и рантайм-загрузки (в рантайме берутся из named volumes) ----------
+*.db
+*.sqlite
+*.sqlite3
+backend/requirex*.db
+backend/uploads/
+
+# ---------- логи и системный мусор ----------
+*.log
+logs/
+.DS_Store
+Thumbs.db
+
+# ---------- прочий локальный контент, не нужный образу ----------
+pitch/
+scripts/figma_token.txt

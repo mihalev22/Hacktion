@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import ForeignKey, String, Text, DateTime, Float, Boolean, Integer
+from sqlalchemy import ForeignKey, String, Text, DateTime, Float, Boolean, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -15,10 +15,58 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    email: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(300))
+    name: Mapped[str] = mapped_column(String(100))
+    system_role: Mapped[str] = mapped_column(String(10), default="user")  # admin | user (≠ AI-роли, ≠ project access)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)        # False = blocked
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+    meetings: Mapped[list["Meeting"]] = relationship(back_populates="user")
+    projects: Mapped[list["Project"]] = relationship(back_populates="owner")
+
+
+class ProjectMember(Base):
+    """Доступ к проекту: owner | editor | viewer."""
+    __tablename__ = "project_members"
+    __table_args__ = (UniqueConstraint("project_id", "user_id", name="uq_project_user"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    role: Mapped[str] = mapped_column(String(10), default="viewer")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+    project: Mapped["Project"] = relationship(back_populates="members")
+    user: Mapped["User"] = relationship()
+
+
+class Project(Base):
+    __tablename__ = "projects"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+    owner: Mapped["User | None"] = relationship(back_populates="projects")
+    meetings: Mapped[list["Meeting"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    members: Mapped[list["ProjectMember"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+
+
 class Meeting(Base):
     __tablename__ = "meetings"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(200), default="Встреча")
     description: Mapped[str] = mapped_column(Text, default="")
     file_hash: Mapped[str | None] = mapped_column(String(64), index=True)
@@ -31,6 +79,8 @@ class Meeting(Base):
     error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
+    user: Mapped["User | None"] = relationship(back_populates="meetings")
+    project: Mapped["Project | None"] = relationship(back_populates="meetings")
     segments: Mapped[list["TranscriptSegment"]] = relationship(back_populates="meeting", cascade="all, delete-orphan")
     requirements: Mapped[list["Requirement"]] = relationship(back_populates="meeting", cascade="all, delete-orphan")
     open_questions: Mapped[list["OpenQuestion"]] = relationship(back_populates="meeting", cascade="all, delete-orphan")

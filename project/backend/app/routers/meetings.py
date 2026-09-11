@@ -295,32 +295,44 @@ def export_tz(meeting_id: str, user: models.User = Depends(get_current_user),
               db: Session = Depends(get_db)):
     m, _ = own_meeting(meeting_id, user, db)
     lines = [f"# Техническое задание — {m.title}", "",
-             "_Сформировано X<актион> ТехЗадание из разговора. Дата встречи: "
-             f"{m.created_at:%d.%m.%Y}_", ""]
-    groups = [("Функциональные требования", "functional"), ("Нефункциональные требования", "non-functional")]
+              "_Сформировано X<актион> ТехЗадание из разговора. Дата встречи: "
+              f"{m.created_at:%d.%m.%Y}_", ""]
+    if m.summary:
+        lines += ["## 1. Общая информация", "", m.summary, ""]
+    roles = sorted({s.speaker for s in m.segments if s.speaker})
+    reqs = [r for r in m.requirements if r.type != "constraint"]
+    us = [(uc, r) for r in reqs for uc in r.user_stories]
+    if roles or us:
+        lines += ["## 2. Акторы и пользовательские сценарии (UC)", ""]
+        if roles:
+            lines += ["**Акторы из записи:** " + ", ".join(roles), ""]
+        n = 0
+        for uc, r in us:
+            n += 1
+            lines += [f"### UC-{n:03d}. Как {uc.role or 'пользователь'} — {uc.action}",
+                      f"- Цель: {uc.goal}", f"- Реализует требование: {r.public_id}", ""]
+    groups = [("## 3. Функциональные требования", "functional"),
+              ("## 4. Нефункциональные требования", "non-functional")]
     for header, typ in groups:
         items = [r for r in m.requirements if r.type == typ]
         if not items:
             continue
-        lines += [f"## {header}", ""]
+        lines += [header, ""]
         for r in items:
             mark = " ⚠️ требует уточнения" if r.needs_clarification else ""
             lines += [f"### {r.public_id}. {r.title}{mark}", r.description,
                       f"*Приоритет: {r.priority} · Уверенность: {int(r.confidence * 100)}%*", ""]
     cons = [r for r in m.requirements if r.type == "constraint"]
     if cons:
-        lines += ["## Ограничения"] + [f"- {c.description}" for c in cons] + [""]
+        lines += ["## 5. Ограничения"] + [f"- {c.description}" for c in cons] + [""]
     qs = [q for q in m.open_questions if not q.resolved]
     if qs:
-        lines += ["## Открытые вопросы"] + [f"- {q.description}" for q in qs] + [""]
+        lines += ["## 6. Открытые вопросы"] + [f"- {q.description}" for q in qs] + [""]
     xs = m.contradictions
     if xs:
-        lines += ["## Обнаруженные противоречия"]
+        lines += ["## 7. Обнаруженные противоречия"]
         for x in xs:
             lines += [f"- **[{x.requirement_public_ids}]** {x.description}",
                       f"  Рекомендация: {x.recommendation}"]
         lines += [""]
-    us = [us for r in m.requirements for us in r.user_stories]
-    if us:
-        lines += ["## User Stories"] + [f"- Как {u.role}, я хочу {u.action}, чтобы {u.goal}" for u in us]
     return "\n".join(lines)

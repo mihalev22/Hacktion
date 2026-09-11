@@ -69,4 +69,9 @@ def chat(messages: list[dict], model: str = "GigaChat-3-Ultra", temperature: flo
 def chat_json(messages: list[dict], **kwargs) -> dict:
     raw = chat(messages, **kwargs)
     start, end = raw.find("{"), raw.rfind("}")
-    return json.loads(raw[start : end + 1])
+    if start < 0 or end <= start:
+        raise ValueError("AI вернул ответ без JSON-структуры")
+    data = json.loads(raw[start : end + 1])
+    if not isinstance(data, dict):
+        raise ValueError("AI вернул не-объектный JSON")
+    return data

@@ -52,3 +52,5 @@ Thumbs.db
 # ---------- прочее локальное ----------
 ../new/
 scripts/figma_token.txt
+*.db-wal
+*.db-shm

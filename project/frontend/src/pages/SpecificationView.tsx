@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   AlertTriangle, ArrowLeft, CheckCircle2, Clock3, Download, FileText, ListChecks,
   Loader2, Pencil, Play, ShieldQuestion, Sparkles, Users as UsersIcon, HelpCircle, SlidersHorizontal,
+  Workflow,
 } from "lucide-react";
 import { AppFooter, AppHeader } from "../chrome";
 import { api } from "../api";
@@ -15,13 +16,16 @@ import "../tz.css";
 
 const SECTIONS = [
   ["overview", "01", "Общая информация", FileText],
-  ["requirements", "02", "Функциональные требования", ListChecks],
-  ["nonfunctional", "03", "Нефункциональные требования", SlidersHorizontal],
-  ["roles", "04", "Роли и участники", UsersIcon],
-  ["constraints", "05", "Ограничения", ShieldQuestion],
-  ["contradictions", "06", "Противоречия", AlertTriangle],
-  ["questions", "07", "Открытые вопросы", HelpCircle],
+  ["actors", "02", "Акторы и роли", UsersIcon],
+  ["usecases", "03", "Пользовательские сценарии", Workflow],
+  ["requirements", "04", "Функциональные требования", ListChecks],
+  ["nonfunctional", "05", "Нефункциональные требования", SlidersHorizontal],
+  ["constraints", "06", "Ограничения", ShieldQuestion],
+  ["contradictions", "07", "Противоречия", AlertTriangle],
+  ["questions", "08", "Открытые вопросы", HelpCircle],
 ] as const;
+
+type UC = { key: string; id: string; role: string; action: string; goal: string; req?: Req };
 
 export default function SpecificationView() {
   const params = useParams();
@@ -92,6 +96,35 @@ export default function SpecificationView() {
     : 0;
   const sorted = (a: Req[]) => [...a].sort((x, y) => (PRIO_ORDER[x.priority] ?? 1) - (PRIO_ORDER[y.priority] ?? 1));
 
+  // Use Cases: реальные user_stories из анализа; для functional-требований без истории —
+  // синтез «актор ← for_roles, действие ← title, цель ← описание» (никогда не пусто, без undefined)
+  const ucs: UC[] = [];
+  {
+    let n = 0;
+    for (const r of [...funcReqs, ...nfReqs]) {
+      const stories = r.user_stories?.length
+        ? r.user_stories
+        : r.type === "functional"
+          ? [{ id: `syn-${r.id}`,
+              role: (r.for_roles && r.for_roles !== "ALL" ? r.for_roles.split(/[,;]/)[0].trim() : "") || "Пользователь",
+              action: r.title ? `использовать функцию «${r.title}»` : "реализованное требование",
+              goal: (r.description || "").split(/[.;]\s/)[0].trim() || "результат из договорённостей встречи" }]
+          : [];
+      for (const u of stories) {
+        n += 1;
+        ucs.push({ key: `${u.id}-${n}`, id: `UC-${String(n).padStart(3, "0")}`,
+                   role: u.role || "Пользователь", action: u.action || r.title || "—",
+                   goal: u.goal || "—", req: r });
+      }
+    }
+  }
+
+  const editLink = (tab: string) => (
+    <Link className="sec-edit pdf-exclude" to={id === "mock" ? `/tz/mock?tab=${tab}` : (data.meeting.project_id ? `/projects/${data.meeting.project_id}/meetings/${id}?tab=${tab}` : `/tz/${id}?tab=${tab}`)}>
+      <Pencil size={12} /> редактировать
+    </Link>
+  );
+
   const jump = (sec: string) => {
     const el = bodyRef.current;
     const target = el?.querySelector<HTMLElement>(`#sec-${sec}`);
@@ -160,22 +193,12 @@ export default function SpecificationView() {
               <section id="sec-overview" data-sec="overview">
                 <h2 className="doc-sec">01 · Общая информация</h2>
                 <p className="doc-lead">{data.meeting.summary ? idsNum(data.meeting.summary) : "Выжимка ещё не сформирована."}</p>
+                <p className="doc-note">Документ сформирован AI из расшифровки встречи. Каждое требование и пользовательский
+                  сценарий подтверждены цитатой с таймкодом из оригинала записи — разногласия вынесены в разделы 07–08.</p>
               </section>
 
-              <section id="sec-requirements" data-sec="requirements">
-                <h2 className="doc-sec">02 · Функциональные требования</h2>
-                {sorted(funcReqs).map((r) => <ReqBlock key={r.id} r={r} />)}
-                {!funcReqs.length && <div className="note plain">Пока нет функциональных требований.</div>}
-              </section>
-
-              <section id="sec-nonfunctional" data-sec="nonfunctional">
-                <h2 className="doc-sec">03 · Нефункциональные требования</h2>
-                {sorted(nfReqs).map((r) => <ReqBlock key={r.id} r={r} />)}
-                {!nfReqs.length && <div className="note plain">Нефункциональные требования не выявлены.</div>}
-              </section>
-
-              <section id="sec-roles" data-sec="roles">
-                <h2 className="doc-sec">04 · Роли и участники</h2>
+              <section id="sec-actors" data-sec="actors">
+                <h2 className="doc-sec">02 · Акторы и роли {id !== "mock" && editLink("roles")}</h2>
                 <div>
                   {data.roles.map((role) => {
                     const count = data.requirements.filter((r) => (r.for_roles || "").toLowerCase().includes(role.toLowerCase())).length;
@@ -185,8 +208,39 @@ export default function SpecificationView() {
                 </div>
               </section>
 
+              <section id="sec-usecases" data-sec="usecases">
+                <h2 className="doc-sec">03 · Пользовательские сценарии (UC) {ucs.length > 0 && <span className="badge">{ucs.length}</span>}
+                  {data.meeting.id !== "mock" && editLink("reqs")}</h2>
+                {ucs.map((uc) => (
+                  <div key={uc.key} className="doc-req">
+                    <div className="hd"><span className="code">{uc.id}</span><span className="tt">{idsNum(uc.action)}</span>
+                      {uc.req && <span className="badge">{idNum(uc.req.public_id)}</span>}</div>
+                    <p>Как <b>{uc.role}</b>, я хочу <b>{idsNum(uc.action)}</b>, чтобы <b>{idsNum(uc.goal)}</b>.</p>
+                    <div className="foot">
+                      {uc.req && <span><FileText size={12} /> Реализует: <b>{uc.req.public_id}</b> · {idsNum(uc.req.title)}</span>}
+                      {uc.req?.source?.start_time && (
+                        <span><Clock3 size={12} /> Подтверждение в записи: <b>{uc.req.source.start_time.slice(3)}–{uc.req.source.end_time?.slice(3)}</b></span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {!ucs.length && <div className="note plain">Пользовательские сценарии появятся после анализа встречи.</div>}
+              </section>
+
+              <section id="sec-requirements" data-sec="requirements">
+                <h2 className="doc-sec">04 · Функциональные требования {editLink("reqs")}</h2>
+                {sorted(funcReqs).map((r) => <ReqBlock key={r.id} r={r} />)}
+                {!funcReqs.length && <div className="note plain">Пока нет функциональных требований.</div>}
+              </section>
+
+              <section id="sec-nonfunctional" data-sec="nonfunctional">
+                <h2 className="doc-sec">05 · Нефункциональные требования {editLink("reqs")}</h2>
+                {sorted(nfReqs).map((r) => <ReqBlock key={r.id} r={r} />)}
+                {!nfReqs.length && <div className="note plain">Нефункциональные требования не выявлены.</div>}
+              </section>
+
               <section id="sec-constraints" data-sec="constraints">
-                <h2 className="doc-sec">05 · Ограничения</h2>
+                <h2 className="doc-sec">06 · Ограничения</h2>
                 {data.constraints.map((c) => (
                   <div key={c.id} className="doc-req"><div className="hd"><span className="code">{idNum(c.public_id)}</span><span className="tt">{c.title}</span></div>
                     <p>{c.description}</p></div>
@@ -195,7 +249,7 @@ export default function SpecificationView() {
               </section>
 
               <section id="sec-contradictions" data-sec="contradictions">
-                <h2 className="doc-sec">06 · Противоречия {data.contradictions.length > 0 && <span className="badge high">{data.contradictions.length}</span>}</h2>
+                <h2 className="doc-sec">07 · Противоречия {data.contradictions.length > 0 && <span className="badge high">{data.contradictions.length}</span>}{editLink("contradictions")}</h2>
                 {data.contradictions.map((x) => {
                   const pair = x.requirement_public_ids.split(/[,;]/).map((s) => s.trim());
                   const get = (pid: string) => {
@@ -218,7 +272,7 @@ export default function SpecificationView() {
               </section>
 
               <section id="sec-questions" data-sec="questions">
-                <h2 className="doc-sec">07 · Открытые вопросы</h2>
+                <h2 className="doc-sec">08 · Открытые вопросы {editLink("questions")}</h2>
                 {data.open_questions.map((q) => (
                   <div key={q.id} className="doc-req">
                     <div className="hd"><span className="code">?</span><span className="tt">{idsNum(q.description)}</span>{q.resolved && <CheckCircle2 size={15} color="var(--green)" />}</div>

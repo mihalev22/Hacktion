@@ -32,10 +32,15 @@ def _fmt(sec: float) -> str:
 def extract(segments: list[dict]) -> dict:
     system_prompt = PROMPT_PATH.read_text(encoding="utf-8")
     transcript = build_transcript_text(segments)
-    data = gigachat.chat_json([
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": f"ТРАНСКРИПЦИЯ:\n{transcript}"},
-    ])
+    try:
+        data = gigachat.chat_json([
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"ТРАНСКРИПЦИЯ:\n{transcript}"},
+        ])
+    except json.JSONDecodeError as e:
+        raise RuntimeError("Модель вернула некорректный JSON. Нажмите «Повторить обработку».") from e
+    if not isinstance(data.get("requirements"), list):
+        raise RuntimeError("В ответе модели нет массива requirements. Нажмите «Повторить обработку».")
     _validate_quotes(data, segments)
     data["contradictions"] = find_contradictions(data, segments)
     return data

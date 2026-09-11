@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -92,20 +93,59 @@ def _migrate_auth_columns() -> None:
         db.close()
 
 
+_RESUMABLE: list[tuple[str, str]] = []
+
+
 def _recover_stuck_meetings() -> None:
-    """Пайплайн живёт в памяти процесса: после рестарта встречи «в обработке» зависли навсегда."""
+    """Пайплайн жил в памяти процесса: после рестарта встречи «в обработке» зависают.
+    Если файл записи на диске — возобновляем обработку автоматически; если нет — честная ошибка."""
     db = SessionLocal()
     try:
         stuck = db.query(models.Meeting).filter(
             models.Meeting.status.in_(["extracting", "transcribing", "analyzing"])).all()
         for m in stuck:
-            m.status = "error"
-            m.error = "Обработка прервалась из-за перезапуска сервера. Нажмите «Повторить» — файл сохранён."
+            if m.file_path and Path(m.file_path).exists():
+                _RESUMABLE.append((m.id, m.file_path))
+            else:
+                m.status = "error"
+                m.error = "Файл записи не найден после перезапуска сервера — загрузите встречу заново."
         if stuck:
             db.commit()
-            logging.info("recovery: %d зависших встреч помечены ошибкой (можно повторить без загрузки)", len(stuck))
+            logging.info("recovery: %d встреч к авто-продолжению, %d без файла → ошибка",
+                         len(_RESUMABLE), len(stuck) - len(_RESUMABLE))
     finally:
         db.close()
+
+
+def _resume_stuck() -> None:
+    """Авто-продолжение прерванных пайплайнов без участия пользователя (файл уже на диске)."""
+    import threading
+    import time
+
+    from .services import pipeline
+
+    def _run() -> None:
+        time.sleep(2)
+        for mid, path in _RESUMABLE:
+            db = SessionLocal()
+            try:
+                m = db.get(models.Meeting, mid)
+                if m is None or m.status == "done":
+                    continue
+                for coll in (list(m.requirements), list(m.open_questions),
+                              list(m.contradictions), list(m.segments)):
+                    for item in coll:
+                        db.delete(item)
+                m.error = None
+                m.summary = None
+                m.duration_sec = None
+                db.commit()
+            finally:
+                db.close()
+            pipeline.process_meeting(mid, Path(path))
+
+    if _RESUMABLE:
+        threading.Thread(target=_run, daemon=True).start()
 
 
 def _cleanup_orphans() -> None:
@@ -139,6 +179,7 @@ def _cleanup_orphans() -> None:
 _migrate_auth_columns()
 _cleanup_orphans()
 _recover_stuck_meetings()
+_resume_stuck()
 
 app = FastAPI(title="X<актион> ТехЗадание API")
 

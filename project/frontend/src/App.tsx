@@ -31,17 +31,29 @@ const STEPS_VIDEO: Array<[string, string]> = [
 
 export default function TzScreen() {
   const params = useParams();
-  const query = new URLSearchParams(useLocation().search);
+  const loc = useLocation();
+  const query = new URLSearchParams(loc.search);
   const nav = useNavigate();
   const projectId = params.projectId ?? null;
   const meetingId = params.meetingId ?? params.id ?? query.get("id");
 
+  const TAB_VALUES: Tab[] = ["reqs", "clarify", "questions", "contradictions", "roles"];
+  const tabParam = query.get("tab");
+  const tabFromUrl: Tab = TAB_VALUES.includes(tabParam as Tab) ? (tabParam as Tab) : "reqs";
   const [data, setData] = useState<MeetingData | null>(null);
   const [live, setLive] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [errMsg, setErrMsg] = useState("");
-  const [tab, setTab] = useState<Tab>("reqs");
+  const [tab, setTabState] = useState<Tab>(tabFromUrl);
+  // back/forward и переходы между встречами: вкладка следует за ?tab=
+  useEffect(() => { setTabState(tabFromUrl); }, [tabFromUrl]);
+  const setTab = (t: Tab) => {
+    setTabState(t);
+    const q = new URLSearchParams(loc.search);
+    q.set("tab", t);
+    nav(`${loc.pathname}?${q}`, { replace: true });
+  };
   const [sel, setSel] = useState<Sel | null>(null);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState(false);

@@ -13,6 +13,9 @@ if _IS_SQLITE:
     def _fk_on(dbapi_conn, _record):
         cur = dbapi_conn.cursor()
         cur.execute("PRAGMA foreign_keys=ON")
+        # WAL + busy_timeout: параллельные фоновые пайплайны и API не блокируют друг друга
+        cur.execute("PRAGMA journal_mode=WAL")
+        cur.execute("PRAGMA busy_timeout=5000")
         cur.close()
 
 

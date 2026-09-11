@@ -719,6 +719,23 @@ body { background: var(--app-bg); background-attachment: fixed; color: var(--tx)
 .app-ui .doc { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.15) transparent; }
 .app-ui .doc .doc-in { max-width: 860px; margin: 0; padding: 22px 26px 60px; }
 .app-ui .doc h2.doc-sec { display: flex; align-items: center; gap: 9px; }
+.app-ui .doc-sec .sec-edit { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--tx-4); opacity: .75; flex: none; }
+.app-ui .doc-sec .sec-edit:hover { color: var(--red); opacity: 1; }
+.app-ui .doc-note { font-size: 12px; color: var(--tx-4); line-height: 1.55; margin-top: 8px; }
+@media (max-height: 850px), (max-width: 1366px) {
+  /* 13" ноутбук: плотность выше, декоративные отступы меньше — контент в первом экране */
+  .app-ui .topbar { height: 52px; }
+  .app-ui .dash-in { padding: 20px 28px 28px; }
+  .app-ui .hero3 { min-height: 0; gap: 44px; padding: 12px 0 20px; grid-template-columns: minmax(0, 1.15fr) minmax(420px, .85fr); }
+  .app-ui .sect { margin-bottom: 20px; }
+  .app-ui .stats3, .app-ui .pcards3, .app-ui .mlist3 { gap: 10px; }
+  .app-ui .scard { padding: 14px 16px; }
+  .app-ui .tz-body { padding: 0 14px 8px; gap: 8px; }
+  .app-ui .tz-title { font-size: 19px; }
+  .app-ui .audio { height: 42px; }
+  .app-ui .tabs button { padding: 7px 12px; font-size: 12.5px; }
+  .app-ui .grid-main { gap: 10px; grid-template-columns: minmax(230px, 272px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) clamp(130px, 20vh, 200px); }
+}
 @media (max-width: 1000px) {
   .app-ui .doc-layout { grid-template-columns: 1fr; }
   .app-ui .doc-nav { display: none; }
